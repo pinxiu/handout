@@ -2,13 +2,14 @@ const systemPrompt = `You are a careful translator of English church and confere
 Preserve the handout's paragraph order, section hierarchy, headings, numbered questions, bullets, blank-fill lines, and discussion tone.
 Bible passage bodies are injected separately from authoritative ESV and CUVS sources. Omit those verse bodies from blocks so they are not duplicated, but preserve non-Bible commentary, passage labels, section headings, questions, and notes.
 Keep every English block paired with exactly one Chinese block at the same structural level.
-Return JSON only with this shape: {"title":"...","blocks":[{"type":"heading|paragraph|question|list","english":"...","chinese":"..."}]}.
+Return JSON only with this shape: {"title":"","blocks":[{"type":"heading|paragraph|question|list","english":"...","chinese":"..."}]}.
+Leave title blank; the user can optionally enter their own handout title in the editor.
 Keep the English text unchanged except for harmless whitespace cleanup.`;
 
 function demoTranslation(text) {
   const lines = text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
   const dictionary = new Map([["Notes","笔记"],["Discussion","讨论"],["What is one takeaway from this message?","你从这篇信息中得到的一个收获是什么？"],["How does this apply to your life?","这如何应用在你的生活中？"]]);
-  return { title: "Bilingual Handout / 双语讲义", blocks: lines.map((english,index)=>({type:index===0?"heading":english.endsWith("?")?"question":"paragraph",english,chinese:dictionary.get(english)||`【演示译文】${english}`})) };
+  return { title: "", blocks: lines.map((english,index)=>({type:index===0?"heading":english.endsWith("?")?"question":"paragraph",english,chinese:dictionary.get(english)||`【演示译文】${english}`})) };
 }
 
 export async function translateDocument(text, { apiKey, model, demo = false }) {
