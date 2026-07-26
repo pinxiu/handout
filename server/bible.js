@@ -41,7 +41,7 @@ export async function fetchCuvs(reference) {
   const json = await response.json();
   const traditional=(json.verses||[]).map((verse)=>`${verse.verse} ${verse.text.trim()}`).join(" ").trim()||json.text?.trim();
   if(!traditional) throw new Error(`Bible API returned no CUV text for ${reference}.`);
-  return { reference: json.reference || reference, text: traditionalToSimplified(traditional), source: "Bible API CUV, converted to Simplified Chinese" };
+  return { reference: traditionalToSimplified(json.reference || cuvReference), text: traditionalToSimplified(traditional), source: "Bible API CUV, converted to Simplified Chinese" };
 }
 
 export async function resolveBiblePassages(references, overrides, config) {

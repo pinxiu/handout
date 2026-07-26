@@ -34,7 +34,9 @@ Open `http://localhost:4174`.
 - Exports matching `.pdf` files directly, without LibreOffice.
 - Supports portrait and landscape output, with each English/Chinese block kept at the same vertical level.
 - Offers separate English and Chinese font selectors.
+- Can request the complete local font list from browsers that support the Local Font Access API.
 - Supports optional titles, custom left/right running headers, and configurable page-number position and style.
+- Generates content-aware left/right header suggestions that the user can accept individually.
 - Formats detected Bible verse numbers as bold superscript.
 - Uses the compact, borderless two-column style found in the supplied handout archive.
 - Runs in no-key demo mode so the UI and export flow work immediately.

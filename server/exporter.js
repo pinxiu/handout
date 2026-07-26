@@ -18,6 +18,8 @@ const fontSettings=(data={})=>({
   english:data.englishFont||"Arial",
   chinese:data.chineseFont||"Heiti SC"
 });
+const hasChinese=(value)=>/[\u3400-\u9fff]/.test(String(value||""));
+const chineseReference=(passage)=>passage.chinese?.reference||passage.reference;
 const verseRuns=(text,{font,chinese=false,size=20}={})=>{
   const parts=String(text||"").split(/(\b\d{1,3})(?=\s)/g);
   return parts.filter(Boolean).map((part)=>/^\d{1,3}$/.test(part)
@@ -28,21 +30,21 @@ const verseRuns=(text,{font,chinese=false,size=20}={})=>{
 function passageBlock(passage,mode,tableWidth=9360,fonts=fontSettings()) {
   const halfWidth=Math.floor(tableWidth/2);
   const rows=[];
-  if(mode==="bilingual"&&passage.english?.text){
+  if(mode==="bilingual"){
     rows.push(new TableRow({children:[
       new TableCell({margins:{top:80,bottom:80,left:120,right:120},children:[
         new Paragraph({children:[textRun(`${passage.reference} (ESV)`,{bold:true,font:fonts.english})],spacing:{after:70}}),
-        new Paragraph({children:verseRuns(passage.english.text,{font:fonts.english}),spacing:{line:276}})
+        new Paragraph({children:verseRuns(passage.english?.text||"Provide the complete ESV verse text before export.",{font:fonts.english}),spacing:{line:276}})
       ]}),
       new TableCell({margins:{top:80,bottom:80,left:120,right:120},children:[
-        new Paragraph({children:[textRun(`${passage.reference}（和合本）`,{chinese:true,bold:true,font:fonts.chinese})],spacing:{after:70}}),
+        new Paragraph({children:[textRun(`${chineseReference(passage)}（和合本）`,{chinese:true,bold:true,font:fonts.chinese})],spacing:{after:70}}),
         new Paragraph({children:verseRuns(passage.chinese?.text||"请在导出前提供经文。",{chinese:true,font:fonts.chinese}),spacing:{line:276}})
       ]})
     ]}));
   } else {
     const value=mode==="chinese"?passage.chinese:passage.english;
     rows.push(new TableRow({children:[new TableCell({columnSpan:2,margins:{top:80,bottom:80,left:120,right:120},children:[
-      new Paragraph({children:[textRun(`${passage.reference}${mode==="chinese"?"（和合本）":" (ESV)"}`,{chinese:mode==="chinese",bold:true,font:mode==="chinese"?fonts.chinese:fonts.english})],spacing:{after:70}}),
+      new Paragraph({children:[textRun(`${mode==="chinese"?chineseReference(passage):passage.reference}${mode==="chinese"?"（和合本）":" (ESV)"}`,{chinese:mode==="chinese",bold:true,font:mode==="chinese"?fonts.chinese:fonts.english})],spacing:{after:70}}),
       new Paragraph({children:verseRuns(value?.text||"Scripture text not configured.",{chinese:mode==="chinese",font:mode==="chinese"?fonts.chinese:fonts.english}),spacing:{line:276}})
     ]})]}));
   }
@@ -78,11 +80,11 @@ export async function makeDocx(data){
   const tableWidth=landscape?13680:9360;
   const fonts=fontSettings(data);
   const children=[];
-  if(data.title?.trim())children.push(new Paragraph({children:[textRun(data.title.trim(),{font:fonts.english,size:28,bold:true})],spacing:{after:180}}));
+  if(data.title?.trim())children.push(new Paragraph({children:[textRun(data.title.trim(),{font:hasChinese(data.title)?fonts.chinese:fonts.english,chinese:hasChinese(data.title),size:28,bold:true})],spacing:{after:180}}));
   for(const passage of data.passages||[]) if(passage.english?.text||passage.chinese?.text) children.push(passageBlock(passage,mode,tableWidth,fonts),new Paragraph({spacing:{after:80}}));
   for(const block of data.blocks||[]) children.push(contentBlock(block,mode,tableWidth,fonts));
   const headerTable=new Table({width:{size:tableWidth,type:WidthType.DXA},columnWidths:[Math.floor(tableWidth/2),Math.ceil(tableWidth/2)],borders:{top:noBorder,bottom:noBorder,left:noBorder,right:noBorder,insideHorizontal:noBorder,insideVertical:noBorder},rows:[new TableRow({children:[
-    new TableCell({children:[new Paragraph({children:[textRun(data.headerLeft||"",{font:fonts.english,size:18})]})]}),
+    new TableCell({children:[new Paragraph({children:[textRun(data.headerLeft||"",{font:hasChinese(data.headerLeft)?fonts.chinese:fonts.english,chinese:hasChinese(data.headerLeft),size:18})]})]}),
     new TableCell({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[textRun(data.headerRight||"",{font:fonts.chinese,chinese:true,size:18})]})]})
   ]})]});
   const pageAlign={left:AlignmentType.LEFT,center:AlignmentType.CENTER,right:AlignmentType.RIGHT}[data.pageNumberPosition]||AlignmentType.RIGHT;
@@ -135,9 +137,9 @@ export async function makePdf(data){
   const bilingual=mode==="bilingual",columnWidth=bilingual?(usable-gap)/2:usable;
   let y=52;
   const addPageIfNeeded=(height)=>{if(y+height>doc.page.height-68){doc.addPage({size:"LETTER",layout,margins:{top:52,bottom:52,left:54,right:54}});y=52;}};
-  if(data.title?.trim()){writePdfText(doc,data.title.trim(),margin,y,usable,{font:englishPdf,boldFont:englishBold,bold:true,size:16,color:"#202020",lineGap:1});y+=30;}
+  if(data.title?.trim()){const mixedTitle=hasChinese(data.title);writePdfText(doc,data.title.trim(),margin,y,usable,{font:mixedTitle?"Noto":englishPdf,boldFont:mixedTitle?"NotoBold":englishBold,bold:true,size:16,color:"#202020",lineGap:1});y+=30;}
   for(const passage of data.passages||[]){
-    const english=passage.english?.text||"",chinese=passage.chinese?.text||"请提供实际的经文内容。";
+    const english=passage.english?.text||"Provide the complete ESV verse text before export.",chinese=passage.chinese?.text||"请提供实际的经文内容。";
     if(!english&&!passage.chinese?.text)continue;
     if(bilingual){
       doc.font("NotoBold").fontSize(10);
@@ -147,7 +149,7 @@ export async function makePdf(data){
       addPageIfNeeded(height+18);
       writePdfText(doc,`${passage.reference} (ESV)`,margin,y,columnWidth-8,{font:englishPdf,boldFont:englishBold,bold:true,size:10,color:"#202020"});
       writePdfVerse(doc,english,margin,y+20,columnWidth-8,{font:englishPdf,boldFont:englishBold,size:9.5});
-      writePdfText(doc,`${passage.reference}（和合本简体）`,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:true,size:10,color:"#202020"});
+      writePdfText(doc,`${chineseReference(passage)}（和合本简体）`,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:true,size:10,color:"#202020"});
       writePdfVerse(doc,chinese,margin+columnWidth+gap,y+20,columnWidth-8,{font:"Noto",boldFont:"NotoBold",size:9.5});
       y+=height+18;
     }else{
@@ -155,7 +157,7 @@ export async function makePdf(data){
       doc.font("Noto").fontSize(9.5);
       const height=44+doc.heightOfString(value,{width:usable-24,lineGap:2});
       addPageIfNeeded(height+18);
-      writePdfText(doc,`${passage.reference}${mode==="chinese"?"（和合本简体）":" (ESV)"}`,margin,y,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,bold:true,size:10,color:"#202020"});
+      writePdfText(doc,`${mode==="chinese"?chineseReference(passage):passage.reference}${mode==="chinese"?"（和合本简体）":" (ESV)"}`,margin,y,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,bold:true,size:10,color:"#202020"});
       writePdfVerse(doc,value,margin,y+20,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,size:9.5});
       y+=height+18;
     }
@@ -178,7 +180,7 @@ export async function makePdf(data){
   for(let i=0;i<pages.count;i++){
     doc.switchToPage(i);
     const headerY=30;
-    doc.font(englishPdf).fontSize(8.5).fillColor("#202020").text(data.headerLeft||"",margin,headerY,{width:usable/2,lineBreak:false});
+    doc.font(hasChinese(data.headerLeft)?"Noto":englishPdf).fontSize(8.5).fillColor("#202020").text(data.headerLeft||"",margin,headerY,{width:usable/2,lineBreak:false});
     doc.font("Noto").fontSize(8.5).text(data.headerRight||"",margin+usable/2,headerY,{width:usable/2,align:"right",lineBreak:false});
     doc.page.margins.bottom=0;
     const pageText=data.pageNumberStyle==="currentTotal"?`${i+1} / ${pages.count}`:`${i+1}`;

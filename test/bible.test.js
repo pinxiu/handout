@@ -26,6 +26,7 @@ test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", as
   const result = await fetchCuvs("John 3:16");
   assert.match(requestedUrl, /translation=cuv/);
   assert.match(decodeURIComponent(requestedUrl), /約翰福音 3:16/);
+  assert.equal(result.reference, "约翰福音 3:16");
   assert.equal(result.text, "16 神爱世人，甚至将他的独生子赐给他们。");
   assert.match(result.source, /Simplified Chinese/);
 });
