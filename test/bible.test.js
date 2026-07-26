@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchCuvs, resolveBiblePassages } from "../server/bible.js";
+import { fetchCuvs, resolveBiblePassages, toCuvReference } from "../server/bible.js";
+
+test("converts detected English book names to Bible API CUV book names", () => {
+  assert.equal(toCuvReference("John 3:16"), "約翰福音 3:16");
+  assert.equal(toCuvReference("2 Corinthians 5:14-21"), "哥林多後書 5:14-21");
+  assert.equal(toCuvReference("Song of Songs 2:1"), "雅歌 2:1");
+});
 
 test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -19,6 +25,7 @@ test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", as
 
   const result = await fetchCuvs("John 3:16");
   assert.match(requestedUrl, /translation=cuv/);
+  assert.match(decodeURIComponent(requestedUrl), /約翰福音 3:16/);
   assert.equal(result.text, "16 神爱世人，甚至将他的独生子赐给他们。");
   assert.match(result.source, /Simplified Chinese/);
 });
