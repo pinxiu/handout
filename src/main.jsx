@@ -31,7 +31,7 @@ function App(){
   useEffect(()=>{fetch("/api/health").then(r=>r.json()).then(setHealth).catch(()=>{})},[]);
   const configured=health.translationConfigured;
   const statusText=useMemo(()=>[
-    configured?"Gemini translation ready":"Demo translation",
+    configured?"Gemini translation ready":"Gemini not configured",
     health.esvConfigured?"ESV connected":"ESV source-text/override mode",
     "CUV via Bible API"
   ],[health,configured]);
@@ -166,11 +166,18 @@ function App(){
         <article className={`paper ${orientation}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont}}>
           <div className="preview-header"><span>{headerLeft}</span><span>{headerRight}</span></div>
           <input className="title-editor" placeholder="Optional handout title" value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/>
-          {draft.passages?.map((p,pi)=><div className={`passage ${mode}`} key={p.reference}>
-            {mode!=="chinese"&&<div className="english-copy"><strong>{p.reference} (ESV)</strong><div className="verse-display" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"english",e.currentTarget.innerText)}>{versePreview(p.english?.text||"Provide the complete ESV verse text before export.")}</div><small>{p.english?.source||"Needs English source text"} · click text to edit</small></div>}
-            {mode!=="english"&&<div className="chinese-copy"><strong>{p.chinese?.reference||p.reference}（和合本简体）</strong><div className="verse-display" lang="zh-Hans" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"chinese",e.currentTarget.innerText)}>{versePreview(p.chinese?.text||"请提供实际的经文内容")}</div><small>{p.chinese?.source||"Needs source"} · 点击经文可编辑</small></div>}
-          </div>)}
-          {draft.blocks.map((block,i)=><div className={`block ${block.type} ${mode}`} key={i}>{mode!=="chinese"&&<textarea className="english-copy" value={block.english} onChange={e=>updateBlock(i,"english",e.target.value)}/>} {mode!=="english"&&<textarea className="chinese-copy" lang="zh-Hans" value={block.chinese} onChange={e=>updateBlock(i,"chinese",e.target.value)}/>}</div>)}
+          {draft.blocks.map((block,i)=>{
+            if(block.type==="scripture"){
+              const pi=draft.passages.findIndex(p=>p.reference===block.reference);
+              const p=draft.passages[pi];
+              if(!p)return null;
+              return <div className={`passage ${mode}`} key={`scripture-${block.reference}`}>
+                {mode!=="chinese"&&<div className="english-copy"><strong>{p.reference} (ESV)</strong><div className="verse-display" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"english",e.currentTarget.innerText)}>{versePreview(p.english?.text||"Provide the complete ESV verse text before export.")}</div><small>{p.english?.source||"Needs English source text"} · click text to edit</small></div>}
+                {mode!=="english"&&<div className="chinese-copy"><strong>{p.chinese?.reference||p.reference}（和合本简体）</strong><div className="verse-display" lang="zh-Hans" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"chinese",e.currentTarget.innerText)}>{versePreview(p.chinese?.text||"请提供实际的经文内容")}</div><small>{p.chinese?.source||"Needs source"} · 点击经文可编辑</small></div>}
+              </div>;
+            }
+            return <div className={`block ${block.type} ${mode}`} key={i}>{mode!=="chinese"&&<textarea className="english-copy" value={block.english} onChange={e=>updateBlock(i,"english",e.target.value)}/>} {mode!=="english"&&<textarea className="chinese-copy" lang="zh-Hans" value={block.chinese} onChange={e=>updateBlock(i,"chinese",e.target.value)}/>}</div>;
+          })}
         </article>
       </div>}
       {error&&<div className="error">{error}</div>}

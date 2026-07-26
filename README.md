@@ -39,7 +39,7 @@ Open `http://localhost:4174`.
 - Generates content-aware left/right header suggestions that the user can accept individually.
 - Formats detected Bible verse numbers as bold superscript.
 - Uses the compact, borderless two-column style found in the supplied handout archive.
-- Runs in no-key demo mode so the UI and export flow work immediately.
+- Requires Gemini for handout translation and never substitutes stub/demo translations.
 
 ## Configure real translation and scripture
 

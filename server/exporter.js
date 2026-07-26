@@ -20,6 +20,12 @@ const fontSettings=(data={})=>({
 });
 const hasChinese=(value)=>/[\u3400-\u9fff]/.test(String(value||""));
 const chineseReference=(passage)=>passage.chinese?.reference||passage.reference;
+const contentSequence=(data)=>{
+  const blocks=data.blocks||[];
+  if(blocks.some(block=>block.type==="scripture"))return blocks;
+  return [...(data.passages||[]).map(passage=>({type:"scripture",reference:passage.reference})),...blocks];
+};
+const findPassage=(data,reference)=>(data.passages||[]).find(passage=>passage.reference===reference);
 const verseRuns=(text,{font,chinese=false,size=20}={})=>{
   const parts=String(text||"").split(/(\b\d{1,3})(?=\s)/g);
   return parts.filter(Boolean).map((part)=>/^\d{1,3}$/.test(part)
@@ -81,8 +87,12 @@ export async function makeDocx(data){
   const fonts=fontSettings(data);
   const children=[];
   if(data.title?.trim())children.push(new Paragraph({children:[textRun(data.title.trim(),{font:hasChinese(data.title)?fonts.chinese:fonts.english,chinese:hasChinese(data.title),size:28,bold:true})],spacing:{after:180}}));
-  for(const passage of data.passages||[]) if(passage.english?.text||passage.chinese?.text) children.push(passageBlock(passage,mode,tableWidth,fonts),new Paragraph({spacing:{after:80}}));
-  for(const block of data.blocks||[]) children.push(contentBlock(block,mode,tableWidth,fonts));
+  for(const block of contentSequence(data)){
+    if(block.type==="scripture"){
+      const passage=findPassage(data,block.reference);
+      if(passage)children.push(passageBlock(passage,mode,tableWidth,fonts),new Paragraph({spacing:{after:80}}));
+    }else children.push(contentBlock(block,mode,tableWidth,fonts));
+  }
   const headerTable=new Table({width:{size:tableWidth,type:WidthType.DXA},columnWidths:[Math.floor(tableWidth/2),Math.ceil(tableWidth/2)],borders:{top:noBorder,bottom:noBorder,left:noBorder,right:noBorder,insideHorizontal:noBorder,insideVertical:noBorder},rows:[new TableRow({children:[
     new TableCell({children:[new Paragraph({children:[textRun(data.headerLeft||"",{font:hasChinese(data.headerLeft)?fonts.chinese:fonts.english,chinese:hasChinese(data.headerLeft),size:18})]})]}),
     new TableCell({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[textRun(data.headerRight||"",{font:fonts.chinese,chinese:true,size:18})]})]})
@@ -138,43 +148,44 @@ export async function makePdf(data){
   let y=52;
   const addPageIfNeeded=(height)=>{if(y+height>doc.page.height-68){doc.addPage({size:"LETTER",layout,margins:{top:52,bottom:52,left:54,right:54}});y=52;}};
   if(data.title?.trim()){const mixedTitle=hasChinese(data.title);writePdfText(doc,data.title.trim(),margin,y,usable,{font:mixedTitle?"Noto":englishPdf,boldFont:mixedTitle?"NotoBold":englishBold,bold:true,size:16,color:"#202020",lineGap:1});y+=30;}
-  for(const passage of data.passages||[]){
-    const english=passage.english?.text||"Provide the complete ESV verse text before export.",chinese=passage.chinese?.text||"请提供实际的经文内容。";
-    if(!english&&!passage.chinese?.text)continue;
-    if(bilingual){
-      doc.font("NotoBold").fontSize(10);
-      const leftHeight=20+doc.heightOfString(english,{width:columnWidth-24,lineGap:2});
-      const rightHeight=20+doc.heightOfString(chinese,{width:columnWidth-24,lineGap:2});
-      const height=Math.max(leftHeight,rightHeight)+24;
-      addPageIfNeeded(height+18);
-      writePdfText(doc,`${passage.reference} (ESV)`,margin,y,columnWidth-8,{font:englishPdf,boldFont:englishBold,bold:true,size:10,color:"#202020"});
-      writePdfVerse(doc,english,margin,y+20,columnWidth-8,{font:englishPdf,boldFont:englishBold,size:9.5});
-      writePdfText(doc,`${chineseReference(passage)}（和合本简体）`,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:true,size:10,color:"#202020"});
-      writePdfVerse(doc,chinese,margin+columnWidth+gap,y+20,columnWidth-8,{font:"Noto",boldFont:"NotoBold",size:9.5});
-      y+=height+18;
+  for(const block of contentSequence(data)){
+    if(block.type==="scripture"){
+      const passage=findPassage(data,block.reference);
+      if(!passage)continue;
+      const english=passage.english?.text||"Provide the complete ESV verse text before export.",chinese=passage.chinese?.text||"请提供实际的经文内容。";
+      if(bilingual){
+        doc.font("NotoBold").fontSize(10);
+        const leftHeight=20+doc.heightOfString(english,{width:columnWidth-24,lineGap:2});
+        const rightHeight=20+doc.heightOfString(chinese,{width:columnWidth-24,lineGap:2});
+        const height=Math.max(leftHeight,rightHeight)+24;
+        addPageIfNeeded(height+18);
+        writePdfText(doc,`${passage.reference} (ESV)`,margin,y,columnWidth-8,{font:englishPdf,boldFont:englishBold,bold:true,size:10,color:"#202020"});
+        writePdfVerse(doc,english,margin,y+20,columnWidth-8,{font:englishPdf,boldFont:englishBold,size:9.5});
+        writePdfText(doc,`${chineseReference(passage)}（和合本简体）`,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:true,size:10,color:"#202020"});
+        writePdfVerse(doc,chinese,margin+columnWidth+gap,y+20,columnWidth-8,{font:"Noto",boldFont:"NotoBold",size:9.5});
+        y+=height+18;
+      }else{
+        const value=mode==="chinese"?chinese:english;
+        doc.font("Noto").fontSize(9.5);
+        const height=44+doc.heightOfString(value,{width:usable-24,lineGap:2});
+        addPageIfNeeded(height+18);
+        writePdfText(doc,`${mode==="chinese"?chineseReference(passage):passage.reference}${mode==="chinese"?"（和合本简体）":" (ESV)"}`,margin,y,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,bold:true,size:10,color:"#202020"});
+        writePdfVerse(doc,value,margin,y+20,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,size:9.5});
+        y+=height+18;
+      }
     }else{
-      const value=mode==="chinese"?chinese:english;
-      doc.font("Noto").fontSize(9.5);
-      const height=44+doc.heightOfString(value,{width:usable-24,lineGap:2});
-      addPageIfNeeded(height+18);
-      writePdfText(doc,`${mode==="chinese"?chineseReference(passage):passage.reference}${mode==="chinese"?"（和合本简体）":" (ESV)"}`,margin,y,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,bold:true,size:10,color:"#202020"});
-      writePdfVerse(doc,value,margin,y+20,usable,{font:mode==="chinese"?"Noto":englishPdf,boldFont:mode==="chinese"?"NotoBold":englishBold,size:9.5});
-      y+=height+18;
+      const heading=block.type==="heading",size=heading?11:9.5;
+      doc.font(heading?"NotoBold":"Noto").fontSize(size);
+      const left=bilingual?block.english:(mode==="chinese"?block.chinese:block.english);
+      const right=bilingual?block.chinese:"";
+      const leftHeight=doc.heightOfString(left||"",{width:columnWidth-8,lineGap:2});
+      const rightHeight=bilingual?doc.heightOfString(right||"",{width:columnWidth-8,lineGap:2}):0;
+      const height=Math.max(leftHeight,rightHeight)+(heading?18:12);
+      addPageIfNeeded(height);
+      writePdfText(doc,left,margin,y,columnWidth-8,{font:englishPdf,boldFont:englishBold,bold:heading,size,color:"#202020"});
+      if(bilingual)writePdfText(doc,right,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:heading,size,color:"#202020"});
+      y+=height;
     }
-  }
-  for(const block of data.blocks||[]){
-    const heading=block.type==="heading",question=block.type==="question",size=heading?11:9.5;
-    doc.font(heading?"NotoBold":"Noto").fontSize(size);
-    const left=bilingual?block.english:(mode==="chinese"?block.chinese:block.english);
-    const right=bilingual?block.chinese:"";
-    const leftHeight=doc.heightOfString(left||"",{width:columnWidth-8,lineGap:2});
-    const rightHeight=bilingual?doc.heightOfString(right||"",{width:columnWidth-8,lineGap:2}):0;
-    const height=Math.max(leftHeight,rightHeight)+(heading?18:12);
-    addPageIfNeeded(height);
-    doc.font(heading?englishBold:englishPdf);
-    writePdfText(doc,left,margin,y,columnWidth-8,{font:englishPdf,boldFont:englishBold,bold:heading,size,color:"#202020"});
-    if(bilingual)writePdfText(doc,right,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:heading,size,color:"#202020"});
-    y+=height;
   }
   const pages=doc.bufferedPageRange();
   for(let i=0;i<pages.count;i++){
