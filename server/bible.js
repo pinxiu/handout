@@ -1,4 +1,6 @@
-const stripHtml = (value = "") => value.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+import * as OpenCC from "opencc-js";
+
+const traditionalToSimplified=OpenCC.Converter({from:"tw",to:"cn"});
 
 export async function fetchEsv(reference, token) {
   if (!token) return null;
@@ -9,13 +11,13 @@ export async function fetchEsv(reference, token) {
   return { reference: json.canonical || reference, text: json.passages?.join("\n").trim(), source: "ESV API (Crossway)" };
 }
 
-export async function fetchCuvs(reference, key, bibleId) {
-  if (!key || !bibleId) return null;
-  const params = new URLSearchParams({"content-type":"html","include-notes":"false","include-titles":"false","include-chapter-numbers":"false","include-verse-numbers":"true"});
-  const response = await fetch(`https://rest.api.bible/v1/bibles/${bibleId}/passages/${encodeURIComponent(reference)}?${params}`, { headers: { "api-key": key } });
-  if (!response.ok) throw new Error(`API.Bible returned ${response.status} for CUVS.`);
+export async function fetchCuvs(reference) {
+  const response = await fetch(`https://bible-api.com/${encodeURIComponent(reference)}?translation=cuv`);
+  if (!response.ok) throw new Error(`Bible API returned ${response.status} for CUV.`);
   const json = await response.json();
-  return { reference: json.data?.reference || reference, text: stripHtml(json.data?.content), source: "API.Bible (CUVS)" };
+  const traditional=(json.verses||[]).map((verse)=>`${verse.verse} ${verse.text.trim()}`).join(" ").trim()||json.text?.trim();
+  if(!traditional) throw new Error(`Bible API returned no CUV text for ${reference}.`);
+  return { reference: json.reference || reference, text: traditionalToSimplified(traditional), source: "Bible API CUV, converted to Simplified Chinese" };
 }
 
 export async function resolveBiblePassages(references, overrides, config) {
@@ -23,7 +25,7 @@ export async function resolveBiblePassages(references, overrides, config) {
   for (const reference of references) {
     const override = overrides?.[reference] || {};
     const english = override.english?.trim() ? { reference, text: override.english.trim(), source: "User override" } : await fetchEsv(reference, config.esvToken);
-    const chinese = override.chinese?.trim() ? { reference, text: override.chinese.trim(), source: "User override" } : await fetchCuvs(reference, config.apiBibleKey, config.cuvsBibleId);
+    const chinese = override.chinese?.trim() ? { reference, text: override.chinese.trim(), source: "User-provided Bible text" } : await fetchCuvs(reference);
     results.push({ reference, english, chinese });
   }
   return results;

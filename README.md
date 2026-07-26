@@ -26,12 +26,13 @@ Open `http://localhost:4174`.
 
 - Imports `.docx` and text-based `.pdf` files up to 20 MB.
 - Detects common English Bible references.
-- Uses official ESV text from Crossway and CUVS text from API.Bible when credentials are configured.
-- Allows per-passage ESV/CUVS overrides.
+- Uses official ESV text from Crossway and public-domain CUV text from Bible API, converting the latter from Traditional to Simplified Chinese.
+- Allows per-passage Bible-text overrides. An override must contain the complete verse text, not only a translation/version name.
 - Translates headings, notes, and discussion questions into Simplified Chinese.
-- Provides an editable browser preview.
+- Makes every generated translation and Bible passage editable before export.
 - Exports bilingual, Chinese-only, or English-only `.docx`.
-- Exports matching `.pdf` files through LibreOffice, with every English/Chinese block kept on the same row.
+- Exports matching `.pdf` files directly, without LibreOffice.
+- Supports portrait and landscape output, with each English/Chinese block kept at the same vertical level.
 - Runs in no-key demo mode so the UI and export flow work immediately.
 
 ## Configure real translation and scripture
@@ -41,13 +42,8 @@ Copy `.env.example` to `.env` and load it through your shell or process manager.
 - `GEMINI_API_KEY`: enables production-quality Simplified Chinese translation through Google Gemini.
 - `GEMINI_MODEL`: optional model override; defaults to `gemini-3.6-flash`.
 - `ESV_API_TOKEN`: Crossway ESV API token.
-- `API_BIBLE_KEY`: API.Bible key.
-- `API_BIBLE_CUVS_ID`: the CUVS Bible ID available to your API.Bible account.
-- `SOFFICE_PATH`: optional path to LibreOffice's `soffice` executable for PDF export.
 
-When scripture credentials are absent, paste authoritative ESV/CUVS text into the passage override fields. The app deliberately does not scrape BibleGateway or silently substitute a different translation.
-
-PDF export requires [LibreOffice](https://www.libreoffice.org/). On macOS the standard application path is detected automatically. For a custom installation, set `SOFFICE_PATH`.
+Chinese scripture does not require an API key. It is fetched from [Bible API](https://bible-api.com/) using the `cuv` translation and converted to Simplified Chinese locally. When the ESV credential is absent—or when a different Bible translation is wanted—paste the complete authoritative verse text into the relevant override field.
 
 ESV API use is subject to Crossway's quotation, attribution, caching, and non-commercial-use terms. Review notices returned by each provider before distributing a generated handout.
 
