@@ -14,18 +14,26 @@ function demoTranslation(text) {
 export async function translateDocument(text, { apiKey, model, demo = false }) {
   if (demo || !apiKey) return demoTranslation(text);
   const input = `Return the translated handout as JSON matching the required schema.\n\nENGLISH HANDOUT:\n${text}`;
-  const response = await fetch("https://api.openai.com/v1/responses", {method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:systemPrompt,input,text:{format:{type:"json_object"}}})});
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method:"POST",
+    headers:{"x-goog-api-key":apiKey,"Content-Type":"application/json"},
+    body:JSON.stringify({
+      systemInstruction:{parts:[{text:systemPrompt}]},
+      contents:[{role:"user",parts:[{text:input}]}],
+      generationConfig:{responseMimeType:"application/json"}
+    })
+  });
   if (!response.ok) {
     const raw = await response.text();
     let message = raw;
     try { message = JSON.parse(raw).error?.message || raw; } catch {}
     if (response.status === 429) {
-      throw new Error(`OpenAI API quota exceeded. Check API billing and usage limits, then try again. ${message}`);
+      throw new Error(`Gemini API quota exceeded. Check Gemini API billing and usage limits, then try again. ${message}`);
     }
-    throw new Error(`Translation service returned ${response.status}: ${message.slice(0,320)}`);
+    throw new Error(`Gemini translation returned ${response.status}: ${message.slice(0,320)}`);
   }
   const json = await response.json();
-  const raw = json.output_text || json.output?.flatMap((o)=>o.content||[]).find((x)=>x.type==="output_text")?.text;
-  if (!raw) throw new Error("Translation service returned no text.");
+  const raw = json.candidates?.[0]?.content?.parts?.map((part)=>part.text||"").join("").trim();
+  if (!raw) throw new Error("Gemini returned no translated text.");
   return JSON.parse(raw);
 }

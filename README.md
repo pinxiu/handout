@@ -38,8 +38,8 @@ Open `http://localhost:4174`.
 
 Copy `.env.example` to `.env` and load it through your shell or process manager.
 
-- `OPENAI_API_KEY`: enables production-quality Simplified Chinese translation.
-- `OPENAI_MODEL`: optional model override.
+- `GEMINI_API_KEY`: enables production-quality Simplified Chinese translation through Google Gemini.
+- `GEMINI_MODEL`: optional model override; defaults to `gemini-3.6-flash`.
 - `ESV_API_TOKEN`: Crossway ESV API token.
 - `API_BIBLE_KEY`: API.Bible key.
 - `API_BIBLE_CUVS_ID`: the CUVS Bible ID available to your API.Bible account.
