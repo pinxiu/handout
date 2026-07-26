@@ -31,6 +31,7 @@ Open `http://localhost:4174`.
 - Translates headings, notes, and discussion questions into Simplified Chinese.
 - Provides an editable browser preview.
 - Exports bilingual, Chinese-only, or English-only `.docx`.
+- Exports matching `.pdf` files through LibreOffice, with every English/Chinese block kept on the same row.
 - Runs in no-key demo mode so the UI and export flow work immediately.
 
 ## Configure real translation and scripture
@@ -42,8 +43,11 @@ Copy `.env.example` to `.env` and load it through your shell or process manager.
 - `ESV_API_TOKEN`: Crossway ESV API token.
 - `API_BIBLE_KEY`: API.Bible key.
 - `API_BIBLE_CUVS_ID`: the CUVS Bible ID available to your API.Bible account.
+- `SOFFICE_PATH`: optional path to LibreOffice's `soffice` executable for PDF export.
 
 When scripture credentials are absent, paste authoritative ESV/CUVS text into the passage override fields. The app deliberately does not scrape BibleGateway or silently substitute a different translation.
+
+PDF export requires [LibreOffice](https://www.libreoffice.org/). On macOS the standard application path is detected automatically. For a custom installation, set `SOFFICE_PATH`.
 
 ESV API use is subject to Crossway's quotation, attribution, caching, and non-commercial-use terms. Review notices returned by each provider before distributing a generated handout.
 
