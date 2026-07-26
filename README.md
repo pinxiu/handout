@@ -1,6 +1,6 @@
 # Handout Bridge
 
-A local web app that turns English DOCX/PDF sermon notes into editable Simplified Chinese or bilingual Word handouts. Its layout is based on the supplied 2025–2026 handout archive.
+A local web app that turns structured English DOCX/PDF handouts into editable Simplified Chinese or bilingual handouts. Its layout is based on the supplied 2025–2026 handout archive.
 
 ## Quick start
 

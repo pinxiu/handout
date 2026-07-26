@@ -1,6 +1,7 @@
-const systemPrompt = `You are a careful church handout translator. Translate English into natural Simplified Chinese.
-Preserve paragraph order, headings, bullet meaning, blank-fill lines, and discussion-question tone.
-Do not translate Bible verse text; scripture is replaced separately with licensed ESV and CUVS text.
+const systemPrompt = `You are a careful translator of English church and conference handouts into natural Simplified Chinese.
+Preserve the handout's paragraph order, section hierarchy, headings, numbered questions, bullets, blank-fill lines, and discussion tone.
+Bible passage bodies are injected separately from authoritative ESV and CUVS sources. Omit those verse bodies from blocks so they are not duplicated, but preserve non-Bible commentary, passage labels, section headings, questions, and notes.
+Keep every English block paired with exactly one Chinese block at the same structural level.
 Return JSON only with this shape: {"title":"...","blocks":[{"type":"heading|paragraph|question|list","english":"...","chinese":"..."}]}.
 Keep the English text unchanged except for harmless whitespace cleanup.`;
 
@@ -12,8 +13,17 @@ function demoTranslation(text) {
 
 export async function translateDocument(text, { apiKey, model, demo = false }) {
   if (demo || !apiKey) return demoTranslation(text);
-  const response = await fetch("https://api.openai.com/v1/responses", {method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:systemPrompt,input:text,text:{format:{type:"json_object"}}})});
-  if (!response.ok) throw new Error(`Translation service returned ${response.status}: ${(await response.text()).slice(0,240)}`);
+  const input = `Return the translated handout as JSON matching the required schema.\n\nENGLISH HANDOUT:\n${text}`;
+  const response = await fetch("https://api.openai.com/v1/responses", {method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model,instructions:systemPrompt,input,text:{format:{type:"json_object"}}})});
+  if (!response.ok) {
+    const raw = await response.text();
+    let message = raw;
+    try { message = JSON.parse(raw).error?.message || raw; } catch {}
+    if (response.status === 429) {
+      throw new Error(`OpenAI API quota exceeded. Check API billing and usage limits, then try again. ${message}`);
+    }
+    throw new Error(`Translation service returned ${response.status}: ${message.slice(0,320)}`);
+  }
   const json = await response.json();
   const raw = json.output_text || json.output?.flatMap((o)=>o.content||[]).find((x)=>x.type==="output_text")?.text;
   if (!raw) throw new Error("Translation service returned no text.");
