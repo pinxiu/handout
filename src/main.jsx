@@ -25,10 +25,13 @@ function App(){
   const[pageNumberStyle,setPageNumberStyle]=useState("current");
   const[layoutPreset,setLayoutPreset]=useState("archive");
   const[marginSize,setMarginSize]=useState("standard");
-  const[bodyFontSize,setBodyFontSize]=useState(10);
+  const[bodyFontSize,setBodyFontSize]=useState(9.5);
   const[headingFontSize,setHeadingFontSize]=useState(11);
   const[headerFontSize,setHeaderFontSize]=useState(9);
-  const[questionSpaceLines,setQuestionSpaceLines]=useState(2);
+  const[englishLineSpacing,setEnglishLineSpacing]=useState(1.22);
+  const[chineseLineSpacing,setChineseLineSpacing]=useState(1.4);
+  const[blockSpacing,setBlockSpacing]=useState(1);
+  const[questionSpaceLines,setQuestionSpaceLines]=useState(0);
   const[notesSpaceLines,setNotesSpaceLines]=useState(10);
   const[health,setHealth]=useState({});
   const[busy,setBusy]=useState("");
@@ -79,7 +82,7 @@ function App(){
     const res=await fetch(format==="pdf"?"/api/export/pdf":"/api/export",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...draft,outputMode:mode,orientation,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,questionSpaceLines,notesSpaceLines})
+      body:JSON.stringify({...draft,outputMode:mode,orientation,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,englishLineSpacing,chineseLineSpacing,blockSpacing,questionSpaceLines,notesSpaceLines})
     });
     if(!res.ok){
       const json=await res.json();
@@ -168,6 +171,9 @@ function App(){
           <label className="field-label">Body size<input type="number" min="8" max="14" step="0.5" value={bodyFontSize} onChange={e=>setBodyFontSize(e.target.value)}/></label>
           <label className="field-label">Section heading size<input type="number" min="9" max="18" step="0.5" value={headingFontSize} onChange={e=>setHeadingFontSize(e.target.value)}/></label>
           <label className="field-label">Header size<input type="number" min="7" max="14" step="0.5" value={headerFontSize} onChange={e=>setHeaderFontSize(e.target.value)}/></label>
+          <label className="field-label">English line spacing<input type="number" min="1.05" max="2" step="0.05" value={englishLineSpacing} onChange={e=>setEnglishLineSpacing(e.target.value)}/></label>
+          <label className="field-label">中文行距<input type="number" min="1.1" max="2" step="0.05" value={chineseLineSpacing} onChange={e=>setChineseLineSpacing(e.target.value)}/></label>
+          <label className="field-label">Gap between paired blocks (pt)<input type="number" min="0" max="24" step="1" value={blockSpacing} onChange={e=>setBlockSpacing(e.target.value)}/></label>
           <label className="field-label">Answer-space lines after each question<input type="number" min="0" max="8" value={questionSpaceLines} onChange={e=>setQuestionSpaceLines(e.target.value)}/></label>
           <label className="field-label">Blank lines after Notes<input type="number" min="0" max="24" value={notesSpaceLines} onChange={e=>setNotesSpaceLines(e.target.value)}/></label>
 
@@ -178,7 +184,7 @@ function App(){
           <button className="secondary" onClick={()=>setStep(2)}>← Edit source & scripture</button>
         </aside>
 
-        <article className={`paper ${orientation} ${layoutPreset}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont,"--body-size":`${bodyFontSize}px`,"--heading-size":`${headingFontSize}px`,"--header-size":`${headerFontSize}px`,"--question-space":`${Number(questionSpaceLines)*Number(bodyFontSize)*1.28}px`,"--notes-space":`${Number(notesSpaceLines)*Number(bodyFontSize)*1.28}px`}}>
+        <article className={`paper ${orientation} ${layoutPreset}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont,"--body-size":`${bodyFontSize}px`,"--heading-size":`${headingFontSize}px`,"--header-size":`${headerFontSize}px`,"--english-leading":englishLineSpacing,"--chinese-leading":chineseLineSpacing,"--block-gap":`${blockSpacing}px`,"--question-space":`${Number(questionSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`,"--notes-space":`${Number(notesSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`}}>
           <div className="preview-header"><span>{headerLeft}</span><span>{headerRight}</span></div>
           <input className="title-editor" placeholder="Optional handout title" value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/>
           {draft.blocks.map((block,i)=>{
