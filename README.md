@@ -35,7 +35,8 @@ Open `http://localhost:4174`.
 - Supports portrait and landscape output, with each English/Chinese block kept at the same vertical level.
 - Offers separate English and Chinese font selectors.
 - Can request the complete local font list from browsers that support the Local Font Access API.
-- Supports optional titles, custom left/right running headers, and configurable page-number position and style.
+- Supports optional titles, custom left/right running headers, and configurable page-number position and style, including no page number.
+- Includes a reference-derived compact landscape preset plus adjustable margins, body/heading/header sizes, question answer space, and notes space.
 - Generates content-aware left/right header suggestions that the user can accept individually.
 - Formats detected Bible verse numbers as bold superscript.
 - Uses the compact, borderless two-column style found in the supplied handout archive.

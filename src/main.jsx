@@ -14,15 +14,22 @@ function App(){
   const[overrides,setOverrides]=useState({});
   const[draft,setDraft]=useState(emptyDraft);
   const[mode,setMode]=useState("bilingual");
-  const[orientation,setOrientation]=useState("portrait");
+  const[orientation,setOrientation]=useState("landscape");
   const[englishFont,setEnglishFont]=useState("Arial");
-  const[chineseFont,setChineseFont]=useState("Heiti SC");
+  const[chineseFont,setChineseFont]=useState("Arial Unicode MS");
   const[availableFonts,setAvailableFonts]=useState(commonFonts);
   const[fontMessage,setFontMessage]=useState("");
   const[headerLeft,setHeaderLeft]=useState("");
   const[headerRight,setHeaderRight]=useState("");
-  const[pageNumberPosition,setPageNumberPosition]=useState("right");
+  const[pageNumberPosition,setPageNumberPosition]=useState("none");
   const[pageNumberStyle,setPageNumberStyle]=useState("current");
+  const[layoutPreset,setLayoutPreset]=useState("archive");
+  const[marginSize,setMarginSize]=useState("standard");
+  const[bodyFontSize,setBodyFontSize]=useState(10);
+  const[headingFontSize,setHeadingFontSize]=useState(11);
+  const[headerFontSize,setHeaderFontSize]=useState(9);
+  const[questionSpaceLines,setQuestionSpaceLines]=useState(2);
+  const[notesSpaceLines,setNotesSpaceLines]=useState(10);
   const[health,setHealth]=useState({});
   const[busy,setBusy]=useState("");
   const[exporting,setExporting]=useState("");
@@ -72,7 +79,7 @@ function App(){
     const res=await fetch(format==="pdf"?"/api/export/pdf":"/api/export",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...draft,outputMode:mode,orientation,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle})
+      body:JSON.stringify({...draft,outputMode:mode,orientation,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,questionSpaceLines,notesSpaceLines})
     });
     if(!res.ok){
       const json=await res.json();
@@ -152,9 +159,17 @@ function App(){
           {suggestions.right&&<button className="suggestion" type="button" onClick={()=>setHeaderRight(suggestions.right)}>Use suggestion: {suggestions.right}</button>}
 
           <p className="mini-label layout-label">Page layout</p>
+          <label className="field-label">Layout density<select value={layoutPreset} onChange={e=>setLayoutPreset(e.target.value)}><option value="archive">Archive compact (recommended)</option><option value="spacious">Spacious</option></select></label>
           <div className="orientation-options">{[["portrait","Portrait","纵向"],["landscape","Landscape","横向"]].map(([value,label,sub])=><label className={`mode compact ${orientation===value?"selected":""}`} key={value}><input type="radio" name="orientation" checked={orientation===value} onChange={()=>setOrientation(value)}/><span><strong>{label}</strong><small>{sub}</small></span></label>)}</div>
-          <label className="field-label">Page number position<select value={pageNumberPosition} onChange={e=>setPageNumberPosition(e.target.value)}><option value="left">Left</option><option value="center">Middle</option><option value="right">Right</option></select></label>
+          <label className="field-label">Margins<select value={marginSize} onChange={e=>setMarginSize(e.target.value)}><option value="standard">Reference style (1 inch)</option><option value="compact">Compact (0.65 inch)</option></select></label>
+          <label className="field-label">Page number position<select value={pageNumberPosition} onChange={e=>setPageNumberPosition(e.target.value)}><option value="none">None</option><option value="left">Left</option><option value="center">Middle</option><option value="right">Right</option></select></label>
           <label className="field-label">Page number style<select value={pageNumberStyle} onChange={e=>setPageNumberStyle(e.target.value)}><option value="current">Page number only (1)</option><option value="currentTotal">With total count (1 / 4)</option></select></label>
+          <p className="mini-label layout-label">Type & writing space</p>
+          <label className="field-label">Body size<input type="number" min="8" max="14" step="0.5" value={bodyFontSize} onChange={e=>setBodyFontSize(e.target.value)}/></label>
+          <label className="field-label">Section heading size<input type="number" min="9" max="18" step="0.5" value={headingFontSize} onChange={e=>setHeadingFontSize(e.target.value)}/></label>
+          <label className="field-label">Header size<input type="number" min="7" max="14" step="0.5" value={headerFontSize} onChange={e=>setHeaderFontSize(e.target.value)}/></label>
+          <label className="field-label">Answer-space lines after each question<input type="number" min="0" max="8" value={questionSpaceLines} onChange={e=>setQuestionSpaceLines(e.target.value)}/></label>
+          <label className="field-label">Blank lines after Notes<input type="number" min="0" max="24" value={notesSpaceLines} onChange={e=>setNotesSpaceLines(e.target.value)}/></label>
 
           <div className="export-actions">
             <button className="primary" disabled={Boolean(exporting)} onClick={()=>exportFile("docx")}>{exporting==="docx"?"Preparing Word handout…":"Download DOCX"} <span>↓</span></button>
@@ -163,7 +178,7 @@ function App(){
           <button className="secondary" onClick={()=>setStep(2)}>← Edit source & scripture</button>
         </aside>
 
-        <article className={`paper ${orientation}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont}}>
+        <article className={`paper ${orientation} ${layoutPreset}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont,"--body-size":`${bodyFontSize}px`,"--heading-size":`${headingFontSize}px`,"--header-size":`${headerFontSize}px`,"--question-space":`${Number(questionSpaceLines)*Number(bodyFontSize)*1.28}px`,"--notes-space":`${Number(notesSpaceLines)*Number(bodyFontSize)*1.28}px`}}>
           <div className="preview-header"><span>{headerLeft}</span><span>{headerRight}</span></div>
           <input className="title-editor" placeholder="Optional handout title" value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/>
           {draft.blocks.map((block,i)=>{
