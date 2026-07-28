@@ -31,8 +31,8 @@ Open `http://localhost:4174`.
 - Translates headings, notes, and discussion questions into Simplified Chinese.
 - Makes every generated translation and Bible passage editable before export.
 - Exports bilingual, Chinese-only, or English-only `.docx`.
-- Opens the editable output workflow in Google Docs and downloads the generated
-  `handout-for-google-docs.docx` for Google Docs import.
+- Uploads the editable output to Google Drive, converts it to a native Google Doc,
+  and opens it directly.
 - Supports portrait and landscape output, with each English/Chinese block kept at the same vertical level.
 - Offers separate English and Chinese font selectors.
 - Can request the complete local font list from browsers that support the Local Font Access API.
@@ -51,6 +51,12 @@ Copy `.env.example` to `.env` and load it through your shell or process manager.
 - `GEMINI_API_KEY`: enables production-quality Simplified Chinese translation through Google Gemini.
 - `GEMINI_MODEL`: optional model override; defaults to `gemini-3.6-flash`.
 - `ESV_API_TOKEN`: Crossway ESV API token.
+- `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Web client ID for one-click Google Docs conversion.
+
+For Google Docs, enable the Google Drive API, create an OAuth 2.0 **Web
+application** client, and add `http://localhost:4174` to its authorized JavaScript
+origins. The app requests the limited `drive.file` scope, so it can access only
+files created through Handout Bridge.
 
 Chinese scripture does not require an API key. It is fetched from [Bible API](https://bible-api.com/) using the `cuv` translation and converted to Simplified Chinese locally. When the ESV credential is absent—or when a different Bible translation is wanted—paste the complete authoritative verse text into the relevant override field.
 

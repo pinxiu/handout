@@ -5,6 +5,49 @@ import"./styles.css";
 const emptyDraft={title:"",headerSuggestions:{left:"",right:""},blocks:[],passages:[]};
 const commonFonts=["Arial","Arial Unicode MS","Times New Roman","Georgia","Verdana","Tahoma","Trebuchet MS","Courier New","Helvetica","Heiti SC","Songti SC","PingFang SC","STHeiti","STSong"];
 const versePreview=(text="")=>text.split(/(\b\d{1,3})(?=\s)/g).filter(Boolean).map((part,i)=>/^\d{1,3}$/.test(part)?<sup key={i}>{part}</sup>:part);
+const googleIdentityReady=()=>new Promise((resolve,reject)=>{
+  if(window.google?.accounts?.oauth2){resolve();return}
+  const existing=document.querySelector('script[data-google-identity="true"]');
+  if(existing){existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",()=>reject(new Error("Could not load Google sign-in.")),{once:true});return}
+  const script=document.createElement("script");
+  script.src="https://accounts.google.com/gsi/client";
+  script.async=true;
+  script.defer=true;
+  script.dataset.googleIdentity="true";
+  script.onload=resolve;
+  script.onerror=()=>reject(new Error("Could not load Google sign-in."));
+  document.head.appendChild(script);
+});
+const requestGoogleDriveToken=async(clientId)=>{
+  await googleIdentityReady();
+  return new Promise((resolve,reject)=>{
+    const client=window.google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:"https://www.googleapis.com/auth/drive.file",
+      callback:(response)=>response.error?reject(new Error(response.error_description||response.error)):resolve(response.access_token),
+      error_callback:()=>reject(new Error("Google sign-in was cancelled or blocked."))
+    });
+    client.requestAccessToken({prompt:"consent"});
+  });
+};
+const uploadAsGoogleDoc=async(blob,title,accessToken)=>{
+  const boundary=`handout_bridge_${Date.now()}`;
+  const metadata=JSON.stringify({name:title||"Bilingual handout",mimeType:"application/vnd.google-apps.document"});
+  const body=new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+    `--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n`,
+    blob,
+    `\r\n--${boundary}--`
+  ]);
+  const response=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",{
+    method:"POST",
+    headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":`multipart/related; boundary=${boundary}`},
+    body
+  });
+  const json=await response.json();
+  if(!response.ok)throw new Error(json.error?.message||"Google Drive could not create the document.");
+  return json;
+};
 
 function App(){
   const[step,setStep]=useState(1);
@@ -107,6 +150,21 @@ function App(){
     setExporting("google");
     setError("");
     setGoogleDocsHint("");
+    if(!health.googleClientId){
+      googleDocsWindow?.close();
+      setError("One-click Google Docs needs GOOGLE_CLIENT_ID in .env. Add a Google OAuth Web client whose authorized JavaScript origin includes http://localhost:4174, then restart the app.");
+      setExporting("");
+      return;
+    }
+    let accessToken;
+    try{
+      accessToken=await requestGoogleDriveToken(health.googleClientId);
+    }catch(error){
+      googleDocsWindow?.close();
+      setError(error.message);
+      setExporting("");
+      return;
+    }
     const res=await fetch("/api/export",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -120,15 +178,15 @@ function App(){
       return;
     }
     const blob=await res.blob();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;
-    a.download="handout-for-google-docs.docx";
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-    if(googleDocsWindow)googleDocsWindow.location.href="https://docs.google.com/document/u/0/";
-    else window.open("https://docs.google.com/document/u/0/","_blank");
-    setGoogleDocsHint("The editable DOCX was downloaded and Google Docs was opened. In Google Docs, click the folder icon, choose Upload, and select handout-for-google-docs.docx.");
+    try{
+      const googleDoc=await uploadAsGoogleDoc(blob,draft.title?.trim()||"Bilingual handout",accessToken);
+      if(googleDocsWindow)googleDocsWindow.location.href=googleDoc.webViewLink;
+      else window.open(googleDoc.webViewLink,"_blank");
+      setGoogleDocsHint("Created in your Google Drive and opened as an editable Google Doc.");
+    }catch(error){
+      googleDocsWindow?.close();
+      setError(error.message);
+    }
     setExporting("");
   }
 
