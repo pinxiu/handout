@@ -1,6 +1,14 @@
 import * as OpenCC from "opencc-js";
 
 const traditionalToSimplified=OpenCC.Converter({from:"tw",to:"cn"});
+export function normalizeCuvPunctuation(value) {
+  return String(value||"")
+    .replaceAll("〔","（")
+    .replaceAll("〕","）")
+    .replaceAll("「","“")
+    .replaceAll("」","”");
+}
+const simplifyCuv=(value)=>normalizeCuvPunctuation(traditionalToSimplified(value));
 const cuvBookNames=new Map(Object.entries({
   Genesis:"創世紀",Exodus:"出埃及記",Leviticus:"利未記",Numbers:"民數記",Deuteronomy:"申命記",
   Joshua:"約書亞記",Judges:"士師記",Ruth:"路得記","1 Samuel":"撒母耳記上","2 Samuel":"撒母耳記下",
@@ -41,7 +49,7 @@ export async function fetchCuvs(reference) {
   const json = await response.json();
   const traditional=(json.verses||[]).map((verse)=>`${verse.verse} ${verse.text.trim()}`).join(" ").trim()||json.text?.trim();
   if(!traditional) throw new Error(`Bible API returned no CUV text for ${reference}.`);
-  return { reference: traditionalToSimplified(json.reference || cuvReference), text: traditionalToSimplified(traditional), source: "Bible API CUV, converted to Simplified Chinese" };
+  return { reference: simplifyCuv(json.reference || cuvReference), text: simplifyCuv(traditional), source: "Bible API CUV, converted to Simplified Chinese" };
 }
 
 export async function resolveBiblePassages(references, overrides, config) {

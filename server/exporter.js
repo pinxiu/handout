@@ -30,9 +30,12 @@ const layoutSettings=(data={})=>{
     chineseLineSpacing:Math.max(1.1,Math.min(2,Number(data.chineseLineSpacing ?? (compact?1.4:1.6)))),
     blockSpacing:Math.max(0,Math.min(24,Number(data.blockSpacing ?? (compact?1:8)))),
     columnGap:compact?16:24,
-    marginInches:data.marginSize==="compact"?0.65:1
+    marginInches:data.marginSize==="compact"?.5:data.marginSize==="medium"?.75:1
   };
 };
+const usesStackedBilingual=(data={})=>
+  (data.outputMode||"bilingual")==="bilingual"
+  && (data.languageLayout==="stacked" || (data.languageLayout!=="sideBySide" && data.orientation!=="landscape"));
 const hasChinese=(value)=>/[\u3400-\u9fff]/.test(String(value||""));
 const chineseReference=(passage)=>passage.chinese?.reference||passage.reference;
 const contentSequence=(data)=>{
@@ -63,13 +66,24 @@ const verseRuns=(text,{font,chinese=false,size=20}={})=>{
     : textRun(part,{font,chinese,size}));
 };
 
-function passageBlock(passage,mode,tableWidth=9360,fonts=fontSettings(),layout=layoutSettings()) {
+function passageBlock(passage,mode,tableWidth=9360,fonts=fontSettings(),layout=layoutSettings(),stacked=false) {
   const halfWidth=Math.floor(tableWidth/2);
   const bodyHalfPoints=layout.bodySize*2;
   const englishLine=Math.round(layout.bodySize*20*layout.englishLineSpacing);
   const chineseLine=Math.round(layout.bodySize*20*layout.chineseLineSpacing);
   const rows=[];
-  if(mode==="bilingual"){
+  if(mode==="bilingual"&&stacked){
+    rows.push(
+      new TableRow({children:[new TableCell({columnSpan:2,margins:{top:80,bottom:45,left:120,right:120},children:[
+        new Paragraph({children:[textRun(`${passage.reference} (ESV)${passage.subtitleEnglish?` – ${passage.subtitleEnglish}`:""}`,{bold:true,font:fonts.english,size:bodyHalfPoints})],spacing:{after:60}}),
+        new Paragraph({children:verseRuns(passage.english?.text||"Provide the complete ESV verse text before export.",{font:fonts.english,size:bodyHalfPoints}),spacing:{line:englishLine}})
+      ]})]}),
+      new TableRow({children:[new TableCell({columnSpan:2,margins:{top:45,bottom:80,left:120,right:120},children:[
+        new Paragraph({children:[textRun(`${chineseReference(passage)}（和合本）${passage.subtitleChinese?`—— ${passage.subtitleChinese}`:""}`,{chinese:true,bold:true,font:fonts.chinese,size:bodyHalfPoints})],spacing:{after:60}}),
+        new Paragraph({children:verseRuns(passage.chinese?.text||"请在导出前提供经文。",{chinese:true,font:fonts.chinese,size:bodyHalfPoints}),spacing:{line:chineseLine}})
+      ]})]})
+    );
+  } else if(mode==="bilingual"){
     rows.push(new TableRow({children:[
       new TableCell({margins:{top:80,bottom:80,left:120,right:120},children:[
         new Paragraph({children:[textRun(`${passage.reference} (ESV)${passage.subtitleEnglish?` – ${passage.subtitleEnglish}`:""}`,{bold:true,font:fonts.english,size:bodyHalfPoints})],spacing:{after:60}}),
@@ -106,10 +120,19 @@ function blockParagraph(text,block,chinese=false,font,layout=layoutSettings()){
   });
 }
 
-function contentBlock(block,mode,tableWidth=9360,fonts=fontSettings(),layout=layoutSettings()){
+function contentBlock(block,mode,tableWidth=9360,fonts=fontSettings(),layout=layoutSettings(),stacked=false){
   if(mode!=="bilingual") return blockParagraph(mode==="chinese"?block.chinese:block.english,block,mode==="chinese",mode==="chinese"?fonts.chinese:fonts.english,layout);
   const halfWidth=Math.floor(tableWidth/2);
   const cellMargins={top:70,bottom:70,left:120,right:120};
+  if(stacked)return new Table({
+    width:{size:tableWidth,type:WidthType.DXA},
+    columnWidths:[halfWidth,tableWidth-halfWidth],
+    borders:{top:noBorder,bottom:noBorder,left:noBorder,right:noBorder,insideHorizontal:noBorder,insideVertical:noBorder},
+    rows:[
+      new TableRow({children:[new TableCell({columnSpan:2,margins:{...cellMargins,bottom:25},children:[blockParagraph(block.english,block,false,fonts.english,layout)]})]}),
+      new TableRow({children:[new TableCell({columnSpan:2,margins:{...cellMargins,top:25},children:[blockParagraph(block.chinese,block,true,fonts.chinese,layout)]})]})
+    ]
+  });
   return new Table({
     width:{size:tableWidth,type:WidthType.DXA},
     columnWidths:[halfWidth,tableWidth-halfWidth],
@@ -125,6 +148,7 @@ export async function makeDocx(data){
   const mode=data.outputMode||"bilingual";
   const landscape=data.orientation==="landscape";
   const layout=layoutSettings(data);
+  const stacked=usesStackedBilingual(data);
   const pageWidth=landscape?15840:12240;
   const tableWidth=pageWidth-Math.round(layout.marginInches*1440)*2;
   const fonts=fontSettings(data);
@@ -133,8 +157,8 @@ export async function makeDocx(data){
   for(const block of presentationSequence(data)){
     if(block.type==="scripture"){
       const passage=findPassage(data,block.reference);
-      if(passage)children.push(passageBlock({...passage,subtitleEnglish:block.subtitleEnglish,subtitleChinese:block.subtitleChinese},mode,tableWidth,fonts,layout),new Paragraph({spacing:{after:50}}));
-    }else children.push(contentBlock(block,mode,tableWidth,fonts,layout));
+      if(passage)children.push(passageBlock({...passage,subtitleEnglish:block.subtitleEnglish,subtitleChinese:block.subtitleChinese},mode,tableWidth,fonts,layout,stacked),new Paragraph({spacing:{after:50}}));
+    }else children.push(contentBlock(block,mode,tableWidth,fonts,layout,stacked));
   }
   const headerTable=new Table({width:{size:tableWidth,type:WidthType.DXA},columnWidths:[Math.floor(tableWidth/2),Math.ceil(tableWidth/2)],borders:{top:noBorder,bottom:noBorder,left:noBorder,right:noBorder,insideHorizontal:noBorder,insideVertical:noBorder},rows:[new TableRow({children:[
     new TableCell({children:[new Paragraph({children:[textRun(data.headerLeft||"",{font:hasChinese(data.headerLeft)?fonts.chinese:fonts.english,chinese:hasChinese(data.headerLeft),size:layout.headerSize*2})]})]}),
@@ -197,7 +221,8 @@ export async function makePdf(data){
   const done=new Promise((resolve,reject)=>{doc.on("end",()=>resolve(Buffer.concat(chunks)));doc.on("error",reject);});
   const grayPdf="#555555";
   const pageWidth=doc.page.width,usable=pageWidth-margin*2,gap=style.columnGap;
-  const bilingual=mode==="bilingual",columnWidth=bilingual?(usable-gap)/2:usable;
+  const bilingual=mode==="bilingual",stacked=usesStackedBilingual(data),pairedColumns=bilingual&&!stacked;
+  const columnWidth=pairedColumns?(usable-gap)/2:usable;
   let y=58;
   const addPageIfNeeded=(height)=>{if(y+height>doc.page.height-54){doc.addPage({size:"LETTER",layout,margins:{top:42,bottom:42,left:margin,right:margin}});y=58;}};
   if(data.title?.trim()){const mixedTitle=hasChinese(data.title);writePdfText(doc,data.title.trim(),margin,y,usable,{font:mixedTitle?"Noto":englishPdf,boldFont:mixedTitle?"NotoBold":englishBold,bold:true,size:16,color:"#202020",lineGap:1});y+=30;}
@@ -210,7 +235,27 @@ export async function makePdf(data){
       const verseSize=Math.max(8,style.bodySize-.5);
       const englishGap=Math.max(0,verseSize*(style.englishLineSpacing-1));
       const chineseGap=Math.max(1,verseSize*(style.chineseLineSpacing-1));
-      if(bilingual){
+      if(stacked){
+        const leftLabel=`${passage.reference} (ESV)${passage.subtitleEnglish?` – ${passage.subtitleEnglish}`:""}`;
+        const rightLabel=`${chineseReference(passage)}（和合本）${passage.subtitleChinese?`—— ${passage.subtitleChinese}`:""}`;
+        const textWidth=usable-8;
+        const labelBodyGap=8;
+        const languageGap=6;
+        const leftLabelHeight=Math.max(style.bodySize*1.4,measurePdfText(doc,leftLabel,textWidth,{font:englishBold,size:style.bodySize,lineGap:0}));
+        const rightLabelHeight=Math.max(style.bodySize*Math.max(1.6,style.chineseLineSpacing),measurePdfText(doc,rightLabel,textWidth,{font:"NotoBold",size:style.bodySize,lineGap:1}));
+        const leftVerseHeight=measurePdfText(doc,english,textWidth,{font:englishPdf,size:verseSize,lineGap:englishGap});
+        const rightVerseHeight=measurePdfText(doc,chinese,textWidth,{font:"Noto",size:verseSize,lineGap:chineseGap});
+        const leftHeight=leftLabelHeight+labelBodyGap+leftVerseHeight;
+        const rightHeight=rightLabelHeight+labelBodyGap+rightVerseHeight;
+        const height=leftHeight+languageGap+rightHeight;
+        addPageIfNeeded(height+style.blockSpacing);
+        writePdfText(doc,leftLabel,margin,y,textWidth,{font:englishPdf,boldFont:englishBold,bold:true,size:style.bodySize,color:"#202020",lineGap:0});
+        writePdfVerse(doc,english,margin,y+leftLabelHeight+labelBodyGap,textWidth,{font:englishPdf,boldFont:englishBold,size:verseSize,lineGap:englishGap});
+        const chineseY=y+leftHeight+languageGap;
+        writePdfText(doc,rightLabel,margin,chineseY,textWidth,{font:"Noto",boldFont:"NotoBold",bold:true,size:style.bodySize,color:"#202020",lineGap:1});
+        writePdfVerse(doc,chinese,margin,chineseY+rightLabelHeight+labelBodyGap,textWidth,{font:"Noto",boldFont:"NotoBold",size:verseSize,lineGap:chineseGap});
+        y+=height+style.blockSpacing;
+      }else if(bilingual){
         const leftLabel=`${passage.reference} (ESV)${passage.subtitleEnglish?` – ${passage.subtitleEnglish}`:""}`;
         const rightLabel=`${chineseReference(passage)}（和合本）${passage.subtitleChinese?`—— ${passage.subtitleChinese}`:""}`;
         const textWidth=columnWidth-8;
@@ -255,11 +300,12 @@ export async function makePdf(data){
       const leftHeight=measurePdfText(doc,left||"",columnWidth-8,{font:leftFont,size,lineGap:leftGap});
       const rightHeight=bilingual?measurePdfText(doc,right||"",columnWidth-8,{font:heading?"NotoBold":"Noto",size,lineGap:chineseGap}):0;
       const extraLines=block.type==="question"?style.questionSpaceLines:block.type==="notes"?style.notesSpaceLines:0;
-      const baseHeight=Math.max(leftHeight,rightHeight)+(heading?5:style.blockSpacing);
+      const baseHeight=(stacked?leftHeight+4+rightHeight:Math.max(leftHeight,rightHeight))+(heading?5:style.blockSpacing);
       const height=baseHeight+extraLines*style.bodySize*Math.max(style.englishLineSpacing,style.chineseLineSpacing);
       addPageIfNeeded(block.type==="notes"?baseHeight:height);
       writePdfText(doc,left,margin,y,columnWidth-8,{font:leftIsChinese?"Noto":englishPdf,boldFont:leftIsChinese?"NotoBold":englishBold,bold:heading,size,color:"#202020",lineGap:leftGap});
-      if(bilingual)writePdfText(doc,right,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:heading,size,color:"#202020",lineGap:chineseGap});
+      if(stacked)writePdfText(doc,right,margin,y+leftHeight+4,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:heading,size,color:"#202020",lineGap:chineseGap});
+      else if(bilingual)writePdfText(doc,right,margin+columnWidth+gap,y,columnWidth-8,{font:"Noto",boldFont:"NotoBold",bold:heading,size,color:"#202020",lineGap:chineseGap});
       y+=height;
     }
   }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchCuvs, resolveBiblePassages, toCuvReference } from "../server/bible.js";
+import { fetchCuvs, normalizeCuvPunctuation, resolveBiblePassages, toCuvReference } from "../server/bible.js";
 
 test("converts detected English book names to Bible API CUV book names", () => {
   assert.equal(toCuvReference("John 3:16"), "約翰福音 3:16");
@@ -18,7 +18,7 @@ test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", as
       ok: true,
       json: async () => ({
         reference: "約翰福音 3:16",
-        verses: [{ verse: 16, text: "神愛世人，甚至將他的獨生子賜給他們。" }]
+        verses: [{ verse: 16, text: "〔小字〕「神愛世人」，甚至將他的獨生子賜給他們。" }]
       })
     };
   };
@@ -27,8 +27,12 @@ test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", as
   assert.match(requestedUrl, /translation=cuv/);
   assert.match(decodeURIComponent(requestedUrl), /約翰福音 3:16/);
   assert.equal(result.reference, "约翰福音 3:16");
-  assert.equal(result.text, "16 神爱世人，甚至将他的独生子赐给他们。");
+  assert.equal(result.text, "16 （小字）“神爱世人”，甚至将他的独生子赐给他们。");
   assert.match(result.source, /Simplified Chinese/);
+});
+
+test("normalizes CUV brackets and quotation marks", () => {
+  assert.equal(normalizeCuvPunctuation("〔小字〕「经文」"), "（小字）“经文”");
 });
 
 test("user-provided Bible text takes priority over fetched scripture", async () => {

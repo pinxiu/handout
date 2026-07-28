@@ -24,6 +24,7 @@ function App(){
   const[pageNumberPosition,setPageNumberPosition]=useState("none");
   const[pageNumberStyle,setPageNumberStyle]=useState("current");
   const[layoutPreset,setLayoutPreset]=useState("archive");
+  const[languageLayout,setLanguageLayout]=useState("auto");
   const[marginSize,setMarginSize]=useState("standard");
   const[bodyFontSize,setBodyFontSize]=useState(9.5);
   const[headingFontSize,setHeadingFontSize]=useState(11);
@@ -82,7 +83,7 @@ function App(){
     const res=await fetch(format==="pdf"?"/api/export/pdf":"/api/export",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...draft,outputMode:mode,orientation,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,englishLineSpacing,chineseLineSpacing,blockSpacing,questionSpaceLines,notesSpaceLines})
+      body:JSON.stringify({...draft,outputMode:mode,orientation,languageLayout,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,englishLineSpacing,chineseLineSpacing,blockSpacing,questionSpaceLines,notesSpaceLines})
     });
     if(!res.ok){
       const json=await res.json();
@@ -138,7 +139,7 @@ function App(){
         <div className="panel scripture-panel">
           <div className="panel-heading"><p className="mini-label">Detected scripture</p><h2>{references.length} passage{references.length===1?"":"s"} found</h2><p>Default: ESV plus CUV converted to Simplified Chinese. Without an ESV API token, English verse text is extracted from the source handout when present. For another version, paste the complete verse text—not only the version name.</p></div>
           {references.length===0&&<div className="empty">No Bible references detected. You can continue and translate the handout as-is.</div>}
-          {references.map(ref=><div className="verse-card" key={ref}><div className="verse-title"><strong>{ref}</strong><span>ESV · CUV 简体</span></div><textarea placeholder="Optional replacement: paste the complete English verses" value={overrides[ref]?.english||""} onChange={e=>setOverrides({...overrides,[ref]:{...overrides[ref],english:e.target.value}})}/><textarea placeholder="可选替换：请粘贴完整的中文经文内容（不只是译本名称）" value={overrides[ref]?.chinese||""} onChange={e=>setOverrides({...overrides,[ref]:{...overrides[ref],chinese:e.target.value}})}/></div>)}
+          {references.map(ref=><div className="verse-card" key={ref}><div className="verse-title"><strong>{ref}</strong><span>ESV · 和合本</span></div><textarea placeholder="Optional replacement: paste the complete English verses" value={overrides[ref]?.english||""} onChange={e=>setOverrides({...overrides,[ref]:{...overrides[ref],english:e.target.value}})}/><textarea placeholder="可选替换：请粘贴完整的中文经文内容（不只是译本名称）" value={overrides[ref]?.chinese||""} onChange={e=>setOverrides({...overrides,[ref]:{...overrides[ref],chinese:e.target.value}})}/></div>)}
           <button className="primary" disabled={!source.trim()||busy} onClick={generate}>{busy||"Generate handout"} <span>→</span></button>
           {!configured&&<p className="hint">Add GEMINI_API_KEY to .env and restart the app for production-quality translation.</p>}
         </div>
@@ -164,7 +165,8 @@ function App(){
           <p className="mini-label layout-label">Page layout</p>
           <label className="field-label">Layout density<select value={layoutPreset} onChange={e=>setLayoutPreset(e.target.value)}><option value="archive">Archive compact (recommended)</option><option value="spacious">Spacious</option></select></label>
           <div className="orientation-options">{[["portrait","Portrait","纵向"],["landscape","Landscape","横向"]].map(([value,label,sub])=><label className={`mode compact ${orientation===value?"selected":""}`} key={value}><input type="radio" name="orientation" checked={orientation===value} onChange={()=>setOrientation(value)}/><span><strong>{label}</strong><small>{sub}</small></span></label>)}</div>
-          <label className="field-label">Margins<select value={marginSize} onChange={e=>setMarginSize(e.target.value)}><option value="standard">Reference style (1 inch)</option><option value="compact">Compact (0.65 inch)</option></select></label>
+          <label className="field-label">Bilingual arrangement<select value={languageLayout} onChange={e=>setLanguageLayout(e.target.value)}><option value="auto">Auto: landscape side by side, portrait stacked</option><option value="sideBySide">Side by side</option><option value="stacked">English then Chinese (stacked)</option></select></label>
+          <label className="field-label">Margins<select value={marginSize} onChange={e=>setMarginSize(e.target.value)}><option value="standard">Reference style (1 inch)</option><option value="medium">Medium (0.75 inch)</option><option value="compact">Compact archive (0.5 inch)</option></select></label>
           <label className="field-label">Page number position<select value={pageNumberPosition} onChange={e=>setPageNumberPosition(e.target.value)}><option value="none">None</option><option value="left">Left</option><option value="center">Middle</option><option value="right">Right</option></select></label>
           <label className="field-label">Page number style<select value={pageNumberStyle} onChange={e=>setPageNumberStyle(e.target.value)}><option value="current">Page number only (1)</option><option value="currentTotal">With total count (1 / 4)</option></select></label>
           <p className="mini-label layout-label">Type & writing space</p>
@@ -184,7 +186,7 @@ function App(){
           <button className="secondary" onClick={()=>setStep(2)}>← Edit source & scripture</button>
         </aside>
 
-        <article className={`paper ${orientation} ${layoutPreset}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont,"--body-size":`${bodyFontSize}px`,"--heading-size":`${headingFontSize}px`,"--header-size":`${headerFontSize}px`,"--english-leading":englishLineSpacing,"--chinese-leading":chineseLineSpacing,"--block-gap":`${blockSpacing}px`,"--question-space":`${Number(questionSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`,"--notes-space":`${Number(notesSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`}}>
+        <article className={`paper ${orientation} ${layoutPreset} ${mode==="bilingual"&&(languageLayout==="stacked"||(languageLayout==="auto"&&orientation==="portrait"))?"stacked-languages":""}`} style={{"--english-font":englishFont,"--chinese-font":chineseFont,"--body-size":`${bodyFontSize}px`,"--heading-size":`${headingFontSize}px`,"--header-size":`${headerFontSize}px`,"--english-leading":englishLineSpacing,"--chinese-leading":chineseLineSpacing,"--block-gap":`${blockSpacing}px`,"--question-space":`${Number(questionSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`,"--notes-space":`${Number(notesSpaceLines)*Number(bodyFontSize)*Math.max(Number(englishLineSpacing),Number(chineseLineSpacing))}px`}}>
           <div className="preview-header"><span>{headerLeft}</span><span>{headerRight}</span></div>
           <input className="title-editor" placeholder="Optional handout title" value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/>
           {draft.blocks.map((block,i)=>{
@@ -194,7 +196,7 @@ function App(){
               if(!p)return null;
               return <div className={`passage ${mode}`} key={`scripture-${block.reference}`}>
                 {mode!=="chinese"&&<div className="english-copy"><strong>{p.reference} (ESV)</strong><div className="verse-display" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"english",e.currentTarget.innerText)}>{versePreview(p.english?.text||"Provide the complete ESV verse text before export.")}</div><small>{p.english?.source||"Needs English source text"} · click text to edit</small></div>}
-                {mode!=="english"&&<div className="chinese-copy"><strong>{p.chinese?.reference||p.reference}（和合本简体）</strong><div className="verse-display" lang="zh-Hans" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"chinese",e.currentTarget.innerText)}>{versePreview(p.chinese?.text||"请提供实际的经文内容")}</div><small>{p.chinese?.source||"Needs source"} · 点击经文可编辑</small></div>}
+                {mode!=="english"&&<div className="chinese-copy"><strong>{p.chinese?.reference||p.reference}（和合本）</strong><div className="verse-display" lang="zh-Hans" contentEditable suppressContentEditableWarning onBlur={e=>updatePassage(pi,"chinese",e.currentTarget.innerText)}>{versePreview(p.chinese?.text||"请提供实际的经文内容")}</div><small>{p.chinese?.source||"Needs source"} · 点击经文可编辑</small></div>}
               </div>;
             }
             return <div className={`block ${block.type} ${mode}`} key={i}>{mode!=="chinese"&&<textarea className="english-copy" value={block.english} onChange={e=>updateBlock(i,"english",e.target.value)}/>} {mode!=="english"&&<textarea className="chinese-copy" lang="zh-Hans" value={block.chinese} onChange={e=>updateBlock(i,"chinese",e.target.value)}/>}</div>;
