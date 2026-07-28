@@ -6,7 +6,9 @@ export function normalizeCuvPunctuation(value) {
     .replaceAll("〔","（")
     .replaceAll("〕","）")
     .replaceAll("「","“")
-    .replaceAll("」","”");
+    .replaceAll("」","”")
+    .replaceAll("『","‘")
+    .replaceAll("』","’");
 }
 const simplifyCuv=(value)=>normalizeCuvPunctuation(traditionalToSimplified(value));
 const cuvBookNames=new Map(Object.entries({

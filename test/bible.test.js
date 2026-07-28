@@ -32,7 +32,7 @@ test("fetchCuvs requests CUV and converts Traditional Chinese to Simplified", as
 });
 
 test("normalizes CUV brackets and quotation marks", () => {
-  assert.equal(normalizeCuvPunctuation("〔小字〕「经文」"), "（小字）“经文”");
+  assert.equal(normalizeCuvPunctuation("〔小字〕「经文」『引文』"), "（小字）“经文”‘引文’");
 });
 
 test("user-provided Bible text takes priority over fetched scripture", async () => {
