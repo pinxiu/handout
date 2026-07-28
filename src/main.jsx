@@ -37,6 +37,7 @@ function App(){
   const[health,setHealth]=useState({});
   const[busy,setBusy]=useState("");
   const[exporting,setExporting]=useState("");
+  const[googleDocsHint,setGoogleDocsHint]=useState("");
   const[error,setError]=useState("");
 
   useEffect(()=>{fetch("/api/health").then(r=>r.json()).then(setHealth).catch(()=>{})},[]);
@@ -98,6 +99,36 @@ function App(){
     a.download=`${mode}-${orientation}-handout.${format}`;
     a.click();
     URL.revokeObjectURL(url);
+    setExporting("");
+  }
+
+  async function openInGoogleDocs(){
+    const googleDocsWindow=window.open("about:blank","_blank");
+    setExporting("google");
+    setError("");
+    setGoogleDocsHint("");
+    const res=await fetch("/api/export",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...draft,outputMode:mode,orientation,languageLayout,englishFont,chineseFont,headerLeft,headerRight,pageNumberPosition,pageNumberStyle,layoutPreset,marginSize,bodyFontSize,headingFontSize,headerFontSize,englishLineSpacing,chineseLineSpacing,blockSpacing,questionSpaceLines,notesSpaceLines})
+    });
+    if(!res.ok){
+      const json=await res.json();
+      googleDocsWindow?.close();
+      setError(json.error);
+      setExporting("");
+      return;
+    }
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download="handout-for-google-docs.docx";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    if(googleDocsWindow)googleDocsWindow.location.href="https://docs.google.com/document/u/0/";
+    else window.open("https://docs.google.com/document/u/0/","_blank");
+    setGoogleDocsHint("The editable DOCX was downloaded and Google Docs was opened. In Google Docs, click the folder icon, choose Upload, and select handout-for-google-docs.docx.");
     setExporting("");
   }
 
@@ -181,8 +212,9 @@ function App(){
 
           <div className="export-actions">
             <button className="primary" disabled={Boolean(exporting)} onClick={()=>exportFile("docx")}>{exporting==="docx"?"Preparing Word handout…":"Download DOCX"} <span>↓</span></button>
-            <button className="primary pdf" disabled={Boolean(exporting)} onClick={()=>exportFile("pdf")}>{exporting==="pdf"?"Preparing PDF handout…":"Download PDF"} <span>↓</span></button>
+            <button className="primary google-docs" disabled={Boolean(exporting)} onClick={openInGoogleDocs}>{exporting==="google"?"Preparing editable handout…":"Edit in Google Docs"} <span>↗</span></button>
           </div>
+          {googleDocsHint&&<p className="google-docs-hint">{googleDocsHint}</p>}
           <button className="secondary" onClick={()=>setStep(2)}>← Edit source & scripture</button>
         </aside>
 

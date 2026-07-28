@@ -31,7 +31,8 @@ Open `http://localhost:4174`.
 - Translates headings, notes, and discussion questions into Simplified Chinese.
 - Makes every generated translation and Bible passage editable before export.
 - Exports bilingual, Chinese-only, or English-only `.docx`.
-- Exports matching `.pdf` files directly, without LibreOffice.
+- Opens the editable output workflow in Google Docs and downloads the generated
+  `handout-for-google-docs.docx` for Google Docs import.
 - Supports portrait and landscape output, with each English/Chinese block kept at the same vertical level.
 - Offers separate English and Chinese font selectors.
 - Can request the complete local font list from browsers that support the Local Font Access API.
