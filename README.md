@@ -1,5 +1,7 @@
 # Handout Bridge
 
+**Live:** https://handout-bridge.kwokp.workers.dev/
+
 A local web app that turns structured English DOCX/PDF handouts into editable Simplified Chinese or bilingual handouts. Its layout is based on the supplied 2025–2026 handout archive.
 
 ## Quick start
